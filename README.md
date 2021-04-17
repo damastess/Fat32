@@ -13,7 +13,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python FATTool.py [-h] [-s] __filename__ __sector_nr__
+python FATTool.py [-h] [-s] filename sector_nr
 ```
 
 ## What it does

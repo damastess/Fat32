@@ -15,7 +15,7 @@ class FATProxy:
                (flags == 0 and pointed_cluster_nr == 0) or\
                flags >= 7:
                 # 7 => bad cluster, >=8 => end cluster, 0 && cluster_nr == 0 => empty,
-                # cluster nr == 0xFFFFFFF special value
+                # cluster nr == 0xFFFFFFF => special value
                 continue
 
             self._fat[cluster_nr] = pointed_cluster_nr
