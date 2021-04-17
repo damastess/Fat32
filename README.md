@@ -1,6 +1,6 @@
 # Fat32
 
-This is a student implementation of a tool used to return metadata information about the file that contains selected disc sector.
+This is a student implementation of a tool used to return metadata information about the file that contains provided disc sector.
 
 ## Installation
 
