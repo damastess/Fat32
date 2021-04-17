@@ -7,18 +7,20 @@ from utilities import FATProxy
 MBR_SECTOR_SIZE = 512
 
 mbr_data = MbrPartitionTable.from_file('noobs1gb.img')
+# mbr_data = MbrPartitionTable.from_file('pen.dd')
 
 # %%
 
 for partition in mbr_data.partitions:
     if partition.lba_start != 0:
-        io = mbr_data._io        
+        io = mbr_data._io
         io.seek(MBR_SECTOR_SIZE * partition.lba_start)
         vfat_partition = Vfat(io)
 
         fats_offset = vfat_partition.boot_sector.pos_fats
         fat_size = vfat_partition.boot_sector.size_fat
-        fat_proxy = FATProxy(fats_offset, fat_size, io)
+        bytes_per_ls = vfat_partition.boot_sector.bpb.bytes_per_ls
+        fat_proxy = FATProxy(fats_offset, fat_size, bytes_per_ls, io)
 
         print(f'Is FAT32 {vfat_partition.boot_sector.is_fat32}')
         print(f'OEM Name: {vfat_partition.boot_sector.oem_name}')
