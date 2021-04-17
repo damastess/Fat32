@@ -8,6 +8,7 @@ from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
 if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
     raise Exception("Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s" % (kaitaistruct.__version__))
 
+
 class Vfat(KaitaiStruct):
     def __init__(self, _io, _parent=None, _root=None):
         self._io = _io
@@ -47,7 +48,6 @@ class Vfat(KaitaiStruct):
             self.partition_volume_label = (KaitaiStream.bytes_strip_right(self._io.read_bytes(11), 32)).decode(u"ASCII")
             self.fs_type_str = (KaitaiStream.bytes_strip_right(self._io.read_bytes(8), 32)).decode(u"ASCII")
 
-
     class BootSector(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -64,7 +64,6 @@ class Vfat(KaitaiStruct):
 
             if self.is_fat32:
                 self.ebpb_fat32 = Vfat.ExtBiosParamBlockFat32(self._io, self, self._root)
-
 
         @property
         def pos_fats(self):
@@ -86,7 +85,7 @@ class Vfat(KaitaiStruct):
         @property
         def ls_per_root_dir(self):
             """Size of root directory in logical sectors.
-            
+
             .. seealso::
                FAT: General Overview of On-Disk Format, section "FAT Data Structure"
             """
@@ -136,7 +135,6 @@ class Vfat(KaitaiStruct):
             self._m_size_root_dir = (self.ls_per_root_dir * self.bpb.bytes_per_ls)
             return self._m_size_root_dir if hasattr(self, '_m_size_root_dir') else None
 
-
     class BiosParamBlock(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -158,7 +156,6 @@ class Vfat(KaitaiStruct):
             self.num_hidden_sectors = self._io.read_u4le()
             self.total_ls_4 = self._io.read_u4le()
 
-
     class RootDirectoryRec(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -175,6 +172,17 @@ class Vfat(KaitaiStruct):
             self.start_clus = self._io.read_u2le()
             self.file_size = self._io.read_u4le()
 
+    class FileAllocationTable(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.records = [None] * (self._root.boot_sector.size_fat // 32)
+            for i in range(self._root.boot_sector.size_fat // 32):
+                self.records[i] = Vfat.FatRec(self._io, self, self._root)
 
     class RootDirectory(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
@@ -187,8 +195,6 @@ class Vfat(KaitaiStruct):
             self.records = [None] * (self._root.boot_sector.bpb.max_root_dir_rec)
             for i in range(self._root.boot_sector.bpb.max_root_dir_rec):
                 self.records[i] = Vfat.RootDirectoryRec(self._io, self, self._root)
-
-
 
     class ExtBiosParamBlockFat16(KaitaiStruct):
         """Extended BIOS Parameter Block (DOS 4.0+, OS/2 1.0+). Used only
@@ -208,6 +214,17 @@ class Vfat(KaitaiStruct):
             self.partition_volume_label = (KaitaiStream.bytes_strip_right(self._io.read_bytes(11), 32)).decode(u"ASCII")
             self.fs_type_str = (KaitaiStream.bytes_strip_right(self._io.read_bytes(8), 32)).decode(u"ASCII")
 
+    class FatRec(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.record_nr = self._io.read_bits_int_le(7)
+            self.ls_nr = self._io.read_bits_int_le(21)
+            self.flags = self._io.read_bits_int_le(4)
 
     @property
     def fats(self):
@@ -216,10 +233,9 @@ class Vfat(KaitaiStruct):
 
         _pos = self._io.pos()
         self._io.seek(self.boot_sector.pos_fats)
-        self._m_fats = [None] * (self.boot_sector.bpb.num_fats)
-        for i in range(self.boot_sector.bpb.num_fats):
-            self._m_fats[i] = self._io.read_bytes(self.boot_sector.size_fat)
-
+        self._raw__m_fats = self._io.read_bytes(self.boot_sector.size_fat)
+        _io__raw__m_fats = KaitaiStream(BytesIO(self._raw__m_fats))
+        self._m_fats = Vfat.FileAllocationTable(_io__raw__m_fats, self, self._root)
         self._io.seek(_pos)
         return self._m_fats if hasattr(self, '_m_fats') else None
 
@@ -235,5 +251,3 @@ class Vfat(KaitaiStruct):
         self._m_root_dir = Vfat.RootDirectory(_io__raw__m_root_dir, self, self._root)
         self._io.seek(_pos)
         return self._m_root_dir if hasattr(self, '_m_root_dir') else None
-
-

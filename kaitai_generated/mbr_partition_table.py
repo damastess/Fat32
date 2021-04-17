@@ -2,17 +2,18 @@
 
 from pkg_resources import parse_version
 import kaitaistruct
-from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
+from kaitaistruct import KaitaiStruct
 
 
 if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
     raise Exception("Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s" % (kaitaistruct.__version__))
 
+
 class MbrPartitionTable(KaitaiStruct):
     """MBR (Master Boot Record) partition table is a traditional way of
     MS-DOS to partition larger hard disc drives into distinct
     partitions.
-    
+
     This table is stored in the end of the boot sector (first sector) of
     the drive, after the bootstrap code. Original DOS 2.0 specification
     allowed only 4 partitions per disc, but DOS 3.2 introduced concept
@@ -50,7 +51,6 @@ class MbrPartitionTable(KaitaiStruct):
             self.lba_start = self._io.read_u4le()
             self.num_sectors = self._io.read_u4le()
 
-
     class Chs(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -78,6 +78,3 @@ class MbrPartitionTable(KaitaiStruct):
 
             self._m_cylinder = (self.b3 + ((self.b2 & 192) << 2))
             return self._m_cylinder if hasattr(self, '_m_cylinder') else None
-
-
-
