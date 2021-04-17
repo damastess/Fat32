@@ -1,30 +1,35 @@
-# %%
-
-from kaitai_generated.vfat import Vfat
 from kaitai_generated.mbr_partition_table import MbrPartitionTable
+from kaitai_generated.vfat import Vfat
 from utilities import FATProxy
+import argparse
 
-MBR_SECTOR_SIZE = 512
 
-# mbr_data = MbrPartitionTable.from_file('noobs1gb.img')
-mbr_data = MbrPartitionTable.from_file('pen.dd')
+def setup():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        dest='filename',
+        help='file containing the filesystem')
+    parser.add_argument(
+        dest='sector_nr', type=int,
+        help='sector number, relative to the image beginning')
+    parser.add_argument(
+        '-s', '--size', dest='mbr_sector_size', type=int,
+        default=512, help='sector size in bytes')
+    args = parser.parse_args()
 
-# %%
+    return args
 
-for partition in mbr_data.partitions:
-    if partition.lba_start != 0:
-        io = mbr_data._io
-        io.seek(MBR_SECTOR_SIZE * partition.lba_start)
-        vfat_partition = Vfat(io)
 
-        fat_proxy = FATProxy(vfat_partition.fats(MBR_SECTOR_SIZE * partition.lba_start).records)
+if __name__ == '__main__':
+    args = setup()
+    mbr_data = MbrPartitionTable.from_file(args.filename)
 
-        # print(f'Is FAT32 {vfat_partition.boot_sector.is_fat32}')
-        # print(f'OEM Name: {vfat_partition.boot_sector.oem_name}')
-        # print(f'Sectors per cluster: {vfat_partition.boot_sector.bpb.ls_per_clus}')
-        # print(f'Bytes per sector: {vfat_partition.boot_sector.bpb.bytes_per_ls}')
+    print(args.filename, args.mbr_sector_size, args.sector_nr)
 
-        print(f'FAT offset {partition.lba_start * MBR_SECTOR_SIZE + vfat_partition.boot_sector.pos_fats}')
-        print(f'FAT size (B): {vfat_partition.boot_sector.size_fat}')
+    for partition in mbr_data.partitions:
+        if partition.lba_start != 0:
+            io = mbr_data._io
+            io.seek(args.mbr_sector_size * partition.lba_start)
+            vfat_partition = Vfat(io)
 
-        print(f'Root dir offset: {vfat_partition.boot_sector.pos_root_dir}')
+            fat_proxy = FATProxy(vfat_partition.fats(args.mbr_sector_size * partition.lba_start).records)
