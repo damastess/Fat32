@@ -226,13 +226,12 @@ class Vfat(KaitaiStruct):
             self.ls_nr = self._io.read_bits_int_le(21)
             self.flags = self._io.read_bits_int_le(4)
 
-    @property
-    def fats(self):
+    def fats(self, vfat_start_offset):
         if hasattr(self, '_m_fats'):
             return self._m_fats if hasattr(self, '_m_fats') else None
 
         _pos = self._io.pos()
-        self._io.seek(self.boot_sector.pos_fats)
+        self._io.seek(self.boot_sector.pos_fats + vfat_start_offset)
         self._raw__m_fats = self._io.read_bytes(self.boot_sector.size_fat)
         _io__raw__m_fats = KaitaiStream(BytesIO(self._raw__m_fats))
         self._m_fats = Vfat.FileAllocationTable(_io__raw__m_fats, self, self._root)
