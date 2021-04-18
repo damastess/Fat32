@@ -306,3 +306,30 @@ types:
         type: u2
       - id: file_size
         type: u4
+
+  file:
+    seq:
+      - id: file_records
+        type: file_rec
+        repeat: expr
+        repeat-expr: _root.boot_sector.bpb.max_root_dir_rec
+  file_rec:
+    seq:
+      - id: file_name
+        type: b8
+      - id: short_extension
+        type: b3
+      - id: attributes
+        type: b1
+      - id: reserved
+        type: b8
+      - id: access_rights
+        type: b2
+      - id: last_modified_time
+        type: b2
+      - id: last_modified_date
+        type: b2
+      - id: start_file_in_cluster
+        type: b2
+      - id: file_size
+        type: b4

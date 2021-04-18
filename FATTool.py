@@ -33,3 +33,5 @@ if __name__ == '__main__':
             vfat_partition = Vfat(io)
 
             fat_proxy = FATProxy(vfat_partition.fats(args.mbr_sector_size * partition.lba_start).records)
+            print(fat_proxy._fat)
+            print(vfat_partition.file().file_records)
