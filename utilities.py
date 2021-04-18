@@ -15,8 +15,12 @@ class FileRec(KaitaiStruct):
         self._read()
 
     def _read(self):
-        self._io.read_bytes(8)
-        # self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
+        # self._io.read_bytes(8)
+        _pos = self._io.pos()
+        self.first_byte = self._io.read_bytes(1)
+        self._io.seek(_pos)
+
+        self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
         self.short_extension = self._io.read_bytes(3)
 
         self.read_only = self._io.read_bits_int_be(1)
@@ -32,14 +36,17 @@ class FileRec(KaitaiStruct):
         self.access_rights = self._io.read_bytes(2)
         self.last_modified_time = self._io.read_bytes(2)
         self.last_modified_date = self._io.read_bytes(2)
-        self.start_file_in_cluster = self._io.read_bytes(2)
-        self.file_size = self._io.read_bytes(4)
+        # TODO: reconstruct cluster_nr
+        self.start_file_in_cluster = self._io.read_u2le()
+        self.file_size = self._io.read_u4le()
 
     def __str__(self):
         print(f'filename: {self.file_name}',
               f'subdirectory: {self.subdirectory}',
               f'start_file_in_cluster: {self.start_file_in_cluster}',
-              f'file_size: {self.file_size}')
+              f'file_size: {self.file_size}',
+              f'subdirectory: {self.subdirectory}',
+              f'volume_label: {self.volume_label}')
 
 
 class Filesystem():
@@ -55,6 +62,7 @@ class Filesystem():
         self._io.seek(_pos)
 
     def _inflate(self):
+        self._io.seek(self._filesystem_offset)
         root_dir = FileRec(self._io)
         dirs_left = Queue(root_dir)
         self._files_list = [root_dir]
@@ -63,18 +71,27 @@ class Filesystem():
             parent_dir = dirs_left.get()
             curr_cluster = parent_dir.start_file_in_cluster
 
-            for i in range(parent_dir.file_size // 32):
-                if self._bytes_per_cluster % (i * 32) == 0:
+            record_offset = 0
+            while True:
+                if self._io.pos() % self._bytes_per_cluster == 0:
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
                     if curr_cluster == -1:
                         break
 
-                # Cluster's size is equal to 4096B + record offset (32B)
-                self._io.seek(self._filesystem_offset + curr_cluster * 4096 + i * 32)
+                # Cluster's size is equal to 4096B
+                self._io.seek(self._filesystem_offset + curr_cluster * 4096 + record_offset)
                 aux = FileRec(self._io)
+
+                # Found an entry regarded as an end-of-files record
+                if aux.first_byte == 0:
+                    break
+
                 if aux.subdirectory == 1:
                     dirs_left.put(aux)
                 self._files_list += [aux]
+
+                # Record size is 32B
+                record_offset += 32
 
 
 class FATProxy:
