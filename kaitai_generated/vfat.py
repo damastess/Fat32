@@ -196,35 +196,6 @@ class Vfat(KaitaiStruct):
             for i in range(self._root.boot_sector.bpb.max_root_dir_rec):
                 self.records[i] = Vfat.RootDirectoryRec(self._io, self, self._root)
 
-    class FileRec(KaitaiStruct):
-        def __init__(self, _io, _parent=None, _root=None):
-            self._io = _io
-            self._parent = _parent
-            self._root = _root if _root else self
-            self._read()
-
-        def _read(self):
-            self.file_name = self._io.read_bytes(8)
-            self.short_extension = self._io.read_bytes(3)
-            self.attributes = self._io.read_bytes(1)
-            self.reserved = self._io.read_bytes(8)
-            self.access_rights = self._io.read_bytes(2)
-            self.last_modified_time = self._io.read_bytes(2)
-            self.last_modified_date = self._io.read_bytes(2)
-            self.start_file_in_cluster = self._io.read_bytes(2)
-            self.file_size = self._io.read_bytes(4)
-
-    class File(KaitaiStruct):
-        def __init__(self, _io, _parent=None, _root=None):
-            self._io = _io
-            self._parent = _parent
-            self._root = _root if _root else self
-            self._read()
-
-        def _read(self):
-            self.file_records = [None] * (self._root.boot_sector.bpb.max_root_dir_rec)
-            for i in range(self._root.boot_sector.bpb.max_root_dir_rec):
-                self.file_records[i] = Vfat.RootDirectoryRec(self._io, self, self._root)
 
     class ExtBiosParamBlockFat16(KaitaiStruct):
         """Extended BIOS Parameter Block (DOS 4.0+, OS/2 1.0+). Used only
