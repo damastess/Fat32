@@ -40,8 +40,8 @@ class FileRec(KaitaiStruct):
                 if next_byte != b"\0x40":
                     last_byte = next_byte
                     long_dir = False
-        # check
-        first = last_byte.decode(u"UTF-8")
+
+        first = last_byte.decode(u"UTF-8")     # check
         self.file_name = first + (KaitaiStream.bytes_terminate(self._io.read_bytes(7), 0, False)).decode(u"UTF-8")
         self.short_extension = self._io.read_bytes(3)
 
