@@ -20,7 +20,28 @@ class FileRec(KaitaiStruct):
         self.first_byte = self._io.read_u1()
         self._io.seek(_pos)
 
-        self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
+        if self.first_byte == b"\0x40":
+            long_dir = True
+            name = ""
+            last_byte = b"\0x40"
+            while long_dir:
+                name_first = (KaitaiStream.bytes_terminate(self._io.read_bytes(10), 0, False)).decode(u"UTF-8")
+                attribute = self._io.read_bytes(1)
+                type = self._io.read_bytes(1)
+                checksum = self._io.read_bytes(1)
+                name_second = (KaitaiStream.bytes_terminate(self._io.read_bytes(12), 0, False)).decode(u"UTF-8")
+                self.fst_clus_lo = self._io.read_bytes(2)
+                name_third = (KaitaiStream.bytes_terminate(self._io.read_bytes(4), 0, False)).decode(u"UTF-8")
+                name += name_first
+                name += name_second
+                name += name_third
+                next_byte = self._io.read_bytes(1)
+                if next_byte != b"\0x40":
+                    last_byte = next_byte
+                    long_dir = False
+
+        first = last_byte.decode(u"UTF-8")
+        self.file_name = first + (KaitaiStream.bytes_terminate(self._io.read_bytes(7), 0, False)).decode(u"UTF-8")
         self.short_extension = self._io.read_bytes(3)
 
         self.read_only = self._io.read_bits_int_be(1)
