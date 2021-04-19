@@ -40,6 +40,7 @@ class FileRec(KaitaiStruct):
         self.last_modified_date = self._io.read_bytes(2)
         self.low_cluster_nr = self._io.read_u2le()
         self.file_size = self._io.read_u4le()
+        # TODO: check if cluster_nr reconstruction is done properly
         self.start_file_in_cluster = self.high_cluster_nr * 65536 + self.low_cluster_nr
 
     def __str__(self):
@@ -87,6 +88,7 @@ class Filesystem():
                 aux = FileRec(self._io)
 
                 # Found an entry regarded as an end-of-chain record
+                # TODO: add other stop-values
                 if aux.first_byte == 0:
                     break
 
