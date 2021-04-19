@@ -196,7 +196,6 @@ class Vfat(KaitaiStruct):
             for i in range(self._root.boot_sector.bpb.max_root_dir_rec):
                 self.records[i] = Vfat.RootDirectoryRec(self._io, self, self._root)
 
-
     class ExtBiosParamBlockFat16(KaitaiStruct):
         """Extended BIOS Parameter Block (DOS 4.0+, OS/2 1.0+). Used only
         for FAT12 and FAT16.

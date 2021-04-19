@@ -17,7 +17,7 @@ class FileRec(KaitaiStruct):
     def _read(self):
         # self._io.read_bytes(8)
         _pos = self._io.pos()
-        self.first_byte = self._io.read_bytes(1)
+        self.first_byte = self._io.read_u1()
         self._io.seek(_pos)
 
         self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
@@ -32,21 +32,25 @@ class FileRec(KaitaiStruct):
         self.device = self._io.read_bits_int_be(1)
         self.reserved_atr = self._io.read_bits_int_be(1)
 
-        self.reserved = self._io.read_bytes(8)
+        self._io.read_bytes(2)
+        self.high_cluster_nr = self._io.read_u2le()
+        self._io.read_bytes(4)
         self.access_rights = self._io.read_bytes(2)
         self.last_modified_time = self._io.read_bytes(2)
         self.last_modified_date = self._io.read_bytes(2)
-        # TODO: reconstruct cluster_nr
-        self.start_file_in_cluster = self._io.read_u2le()
+        self.low_cluster_nr = self._io.read_u2le()
         self.file_size = self._io.read_u4le()
+        self.start_file_in_cluster = self.high_cluster_nr * 65536 + self.low_cluster_nr
 
     def __str__(self):
-        print(f'filename: {self.file_name}',
-              f'subdirectory: {self.subdirectory}',
-              f'start_file_in_cluster: {self.start_file_in_cluster}',
-              f'file_size: {self.file_size}',
-              f'subdirectory: {self.subdirectory}',
-              f'volume_label: {self.volume_label}')
+        print(f'Filename: {self.file_name}\n'
+              f'Subdirectory: {self.subdirectory}\n'
+              f'Start_file_in_cluster: {self.start_file_in_cluster}\n'
+              f'File_size: {self.file_size}\n'
+              f'Subdirectory: {self.subdirectory}\n'
+              f'Volume_label: {self.volume_label}\n'
+              f'high_cluster_nr: {self.high_cluster_nr}\n'
+              f'low_cluster_nr: {self.low_cluster_nr}\n')
 
 
 class Filesystem():
@@ -79,10 +83,10 @@ class Filesystem():
                         break
 
                 # Cluster's size is equal to 4096B
-                self._io.seek(self._filesystem_offset + curr_cluster * 4096 + record_offset)
+                self._io.seek(self._filesystem_offset + curr_cluster * self._bytes_per_cluster + record_offset)
                 aux = FileRec(self._io)
 
-                # Found an entry regarded as an end-of-files record
+                # Found an entry regarded as an end-of-chain record
                 if aux.first_byte == 0:
                     break
 
