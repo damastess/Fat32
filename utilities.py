@@ -20,6 +20,7 @@ class FileRec(KaitaiStruct):
         self.first_byte = self._io.read_u1()
         self._io.seek(_pos)
 
+#check
         if self.first_byte == b"\0x40":
             long_dir = True
             name = ""
