@@ -11,8 +11,18 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
 
 def read_unicode_chars(char_nr, _io):
     # TODO: implement proper unicode parsing (ucs-2)
-    return _io.read_bytes(char_nr)
+    # print(_io.read_bytes(char_nr).decode("ascii", "ignore"))
+    return _io.read_bytes(char_nr).decode("ascii", "ignore")
     # return (KaitaiStream.bytes_terminate(_io.read_bytes(char_nr), 0, False)).decode(u'UTF-16')
+
+
+def get_file_name_by_cluster(_files_list, _cluster_number):
+    for file in _files_list:
+        for name, value in file.__dict__.items():
+            if name == "long_filename":
+                break
+            if name == "start_file_in_cluster" and value == _cluster_number:
+                return file
 
 
 class LongFileRec(KaitaiStruct):
@@ -117,7 +127,9 @@ class Filesystem():
 
         # Dirty workaround
         root_dir = True
-        while not dirs_left.empty() or root_dir:
+        it = 0
+        while it < 10 and (not dirs_left.empty() or root_dir):
+            it += 1
             if not root_dir:
                 parent_dir = dirs_left.get()
                 curr_cluster = parent_dir.start_file_in_cluster

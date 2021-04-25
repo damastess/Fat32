@@ -1,7 +1,7 @@
 # TODO: remove when not needed anymore
 # %%
-%load_ext autoreload
-%autoreload 2
+#%load_ext autoreload
+#%autoreload 2
 
 # %%
 from kaitai_generated.vfat import Vfat
@@ -26,10 +26,10 @@ for partition in mbr_data.partitions:
         bytes_per_cluster = vfat_partition.boot_sector.bpb.bytes_per_ls * vfat_partition.boot_sector.bpb.ls_per_clus
         files = Filesystem(fat_proxy, filesystem_offset, bytes_per_cluster, io)
 
-        # print(f'Is FAT32 {vfat_partition.boot_sector.is_fat32}')
-        # print(f'OEM Name: {vfat_partition.boot_sector.oem_name}')
-        # print(f'Sectors per cluster: {vfat_partition.boot_sector.bpb.ls_per_clus}')
-        # print(f'Bytes per sector: {vfat_partition.boot_sector.bpb.bytes_per_ls}')
+        print(f'Is FAT32 {vfat_partition.boot_sector.is_fat32}')
+        print(f'OEM Name: {vfat_partition.boot_sector.oem_name}')
+        print(f'Sectors per cluster: {vfat_partition.boot_sector.bpb.ls_per_clus}')
+        print(f'Bytes per sector: {vfat_partition.boot_sector.bpb.bytes_per_ls}')
 
         print(f'Partition start offset: {hex(partition_offset)}')
         print(f'FAT offset {hex(partition_offset + vfat_partition.boot_sector.pos_fats)}')
