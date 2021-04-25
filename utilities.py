@@ -20,7 +20,9 @@ class FileRec(KaitaiStruct):
         self.first_byte = self._io.read_u1()
         self._io.seek(_pos)
 
-
+        # TODO: this will not work - long filenames can span multiple
+        #       clusters - no appropreate logic was implemented below to
+        #       accommodate that; fix needed
         if self.first_byte == b"\0x40":
             long_dir = True
             name = ""
