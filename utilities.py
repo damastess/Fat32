@@ -1,4 +1,4 @@
-from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
+from kaitaistruct import KaitaiStruct, KaitaiStream  # , BytesIO
 from pkg_resources import parse_version
 from bidict import bidict
 import kaitaistruct
@@ -12,7 +12,8 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
 def read_unicode_chars(char_nr, _io):
     # TODO: implement proper unicode parsing (ucs-2)
     return _io.read_bytes(char_nr)
-    # return (KaitaiStream.bytes_terminate(self._io.read_bytes(char_nr), 0, False)).decode(u"UTF-8")
+    # return (KaitaiStream.bytes_terminate(_io.read_bytes(char_nr), 0, False)).decode(u'UTF-16')
+
 
 class LongFileRec(KaitaiStruct):
     def __init__(self, _io):
@@ -22,17 +23,15 @@ class LongFileRec(KaitaiStruct):
     def _read(self):
         self.long_filename = True
         self.sequence_nr = self._io.read_u1() ^ int('0x40', 16)
-        file_name_chunk1 = read_unicode_chars(10, self._io)
-        # self._io.read_bytes(10) # long filename chars 1-5 (unicode, le)
-        self.attribute_byte = self._io.read_u1() # file attribute (must be 0x0F)
-        self.sub_flag = self._io.read_u1() # if zero, this is a subcomponent of a long name
-        self.checksum = self._io.read_u1() # checksum of short filename
-        file_name_chunk2 = read_unicode_chars(12, self._io)
-        # self._io.read_bytes(12) # long filename chars 6-11 (unicode, le)
-        self.zero_flag = self._io.read_u2le() # must be zero
-        file_name_chunk3 = read_unicode_chars(4, self._io)
-        # self._io.read_bytes(4) # long filename chars 12-13 (unicode, le)
+        file_name_chunk1 = read_unicode_chars(10, self._io)  # long filename chars 1-5 (unicode, le)
+        self.attribute_byte = self._io.read_u1()  # file attribute (must be 0x0F)
+        self.sub_flag = self._io.read_u1()  # if zero, this is a subcomponent of a long name
+        self.checksum = self._io.read_u1()  # checksum of short filename
+        file_name_chunk2 = read_unicode_chars(12, self._io)  # long filename chars 6-11 (unicode, le)
+        self.zero_flag = self._io.read_u2le()  # must be zero
+        file_name_chunk3 = read_unicode_chars(4, self._io)  # long filename chars 12-13 (unicode, le)
         self.file_name = file_name_chunk1 + file_name_chunk2 + file_name_chunk3
+
 
 class FileRec(KaitaiStruct):
     def __init__(self, _io):
@@ -53,24 +52,19 @@ class FileRec(KaitaiStruct):
         self.device = self._io.read_bits_int_be(1)
         self.reserved_atr = self._io.read_bits_int_be(1)
 
-        self._io.read_bytes(1) # random stuff
-        self._io.read_bytes(1) # first char of deleted file
-        self._io.read_bytes(2) # create time hhmmss
-        self._io.read_bytes(2) # create time yymmdd
-        self._io.read_bytes(2) # owner id
-        self.high_cluster_nr = self._io.read_u2le() # start of file - high two bytes
-        self._io.read_bytes(2) # last modified time
-        self._io.read_bytes(2) # last modified date
-        self.low_cluster_nr = self._io.read_u2le() # start of file - low two bytes
-        self._io.read_bytes(4) # filesize in bytes
+        self._io.read_bytes(1)  # random stuff
+        self._io.read_bytes(1)  # first char of deleted file
+        self._io.read_bytes(2)  # create time hhmmss
+        self._io.read_bytes(2)  # create time yymmdd
+        self._io.read_bytes(2)  # owner id
+        high_cluster_nr = self._io.read_u2le()  # start of file - high two bytes
+        self._io.read_bytes(2)  # last modified time
+        self._io.read_bytes(2)  # last modified date
+        low_cluster_nr = self._io.read_u2le()  # start of file - low two bytes
+        self._io.read_bytes(4)  # filesize in bytes
 
-
-        # long filenames start with 0x40 bit on
-        # ordering is reverse (oldest first)
-        # all long name records have 0x0F in flags byte
-
-        self.start_file_in_cluster = self.high_cluster_nr * 65536 + self.low_cluster_nr
-        print(f'===== {self.high_cluster_nr} {self.low_cluster_nr}')
+        self.start_file_in_cluster = high_cluster_nr * 65536 + low_cluster_nr
+        # print(f'===== {self.high_cluster_nr} {self.low_cluster_nr} {self.start_file_in_cluster}')
 
     def __str__(self):
         print(f'Filename: {self.file_name}\n'
@@ -108,7 +102,6 @@ class Filesystem():
         elif first_byte != 0:
             return FileRec(self._io)
         else:
-            # Found an entry regarded as an end-of-chain record
             return None
 
     def _inflate(self):
@@ -126,6 +119,8 @@ class Filesystem():
             else:
                 curr_cluster = 2
 
+            long_filename_series = False
+            last_long_records = []
             record_offset = 0
             while True:
                 # Cluster's size is equal to 4096B, first cluster's number is equal to 2
@@ -133,21 +128,34 @@ class Filesystem():
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
                 record = self._read_record()
+                # Found an entry regarded as an end-of-chain record
                 if not record:
                     root_dir = False
                     break
 
+                # Not a long filename, but a subdirectory
                 if not record.long_filename and record.subdirectory == 1:
                     dirs_left.put(record)
+                # TODO: store only assembled final files (join long filenames)
                 self._files_list += [record]
+
+                # First short entry after long series
+                if not record.long_filename and long_filename_series:
+                    # TODO: assemble last long records into one record here
+                    last_long_records = []
+                    long_filename_series = False
+                # Another long entry in series
+                elif record.long_filename:
+                    last_long_records += [record]
+                    long_filename_series = True
 
                 # Record size is 32B
                 record_offset += 32
-            
+
                 if self._io.pos() % self._bytes_per_cluster == 0:
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
                     if curr_cluster == -1:
-                        print('-=-=-=-')
+                        print('====== [ END OF CLUSTER CHAIN ] ======')
                         break
 
 

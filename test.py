@@ -37,7 +37,9 @@ for partition in mbr_data.partitions:
         print(f'Root dir offset: {hex(filesystem_offset)}')
 
         for file in files._files_list:
-            print(file.__dict__)
+            print('====')
+            for name, value in file.__dict__.items():
+                print(name, value)
 
     # TODO: remove when ready
     break
