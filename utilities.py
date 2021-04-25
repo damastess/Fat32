@@ -151,9 +151,10 @@ class Filesystem():
                    record.file_name.strip() != b'..':
                     dirs_left.put(record)
 
-                # First short entry after long series
                 if not record.long_filename and long_filename_series:
                     # TODO: assemble last long records into one record here
+                    r = self._long_files_record(last_long_records, record)
+                    record = r
                     last_long_records = []
                     long_filename_series = False
                 # Another long entry in series
@@ -161,7 +162,8 @@ class Filesystem():
                     last_long_records += [record]
                     long_filename_series = True
 
-                self._files_list += [record]
+                if not long_filename_series:
+                    self._files_list += [record]
 
                 # Record size is 32B
                 record_offset += 32
@@ -171,6 +173,23 @@ class Filesystem():
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
                     if curr_cluster == -1:
                         break
+
+                # Record size is 32B
+                record_offset += 32
+
+                if self._io.pos() % self._bytes_per_cluster == 0:
+                    record_offset = 0
+                    curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
+                    if curr_cluster == -1:
+                        break
+
+    def _long_files_record(self, long_files, last_record):
+        full_name = ""
+        for record in long_files:
+            full_name += str(record.file_name)
+        full_name += str(last_record.file_name)
+        last_record.file_name = full_name
+        return last_record
 
 
 class FATProxy:
