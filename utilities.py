@@ -116,6 +116,9 @@ class Filesystem():
             if not root_dir:
                 parent_dir = dirs_left.get()
                 curr_cluster = parent_dir.start_file_in_cluster
+
+                print('========')
+                print('checking file:', parent_dir.file_name.strip(), 'extension:', parent_dir.short_extension.strip(), 'start_cluster:', parent_dir.start_file_in_cluster)
             else:
                 curr_cluster = 2
 
@@ -125,6 +128,7 @@ class Filesystem():
             while True:
                 # Empty dir found
                 if curr_cluster == 0:
+                    print('cluster is 0, skipping')
                     break
 
                 # Cluster's size is equal to 4096B, first cluster's number is equal to 2
@@ -132,15 +136,20 @@ class Filesystem():
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
                 record = self._read_record()
-                # print(f'record found, type: {type(record).__name__}')
+                if type(record).__name__ == 'FileRec':
+                    full_name = record.file_name.strip().decode('utf-8') + '.' + record.short_extension.strip().decode('utf-8')
+                    print(f'rec found, type: {type(record).__name__} in cluster {curr_cluster} offset {record_offset} name {full_name} subdir_flag {record.subdirectory}')
+                else:
+                    print(f'rec found, type: {type(record).__name__} in cluster {curr_cluster} offset {record_offset}')
                 # Found an entry regarded as an end-of-chain record
                 if not record:
-                    # print('===-=-=-=-=-=-=-=-=-=-=-=====')
+                    # print('===-=-=-=-=-=-=-=-=-=-=-===')
                     root_dir = False
                     break
 
                 # Not a long filename, but a subdirectory
-                if not record.long_filename and record.subdirectory == 1:
+                if not record.long_filename and record.subdirectory == 1 and record.file_name != b'.       ' and record.file_name != b'..      ':
+                    print('adding to queue...')
                     dirs_left.put(record)
                 # TODO: store only assembled final files (join long filenames)
                 self._files_list += [record]
@@ -158,7 +167,10 @@ class Filesystem():
                 # Record size is 32B
                 record_offset += 32
 
+                # print(f'======== record_offset {record_offset}')
+
                 if self._io.pos() % self._bytes_per_cluster == 0:
+                    record_offset = 0
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
                     print('====== [ CLUSTER JUMPED ] ======')
                     if curr_cluster == -1:
