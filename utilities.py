@@ -107,8 +107,8 @@ class Filesystem():
                     if curr_cluster == -1:
                         break
 
-                # Cluster's size is equal to 4096B
-                self._io.seek(self._filesystem_offset + curr_cluster * self._bytes_per_cluster + record_offset)
+                # Cluster's size is equal to 4096B, first cluster's number is equal to 2
+                self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
                 aux = FileRec(self._io)
 
                 # Found an entry regarded as an end-of-chain record
