@@ -131,6 +131,8 @@ class FATProxy:
     def _inflate_fat(self, fat_list):
         self._fat = bidict()
         for cluster_nr, record in enumerate(fat_list[2:]):
+            # First 2 clusters are omitted
+            cluster_nr += 2
             flags = record.flags
             pointed_cluster_nr = record.ls_nr * 128 + record.record_nr
 
