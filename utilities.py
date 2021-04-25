@@ -40,17 +40,18 @@ class FileRec(KaitaiStruct):
 
     def _read(self):
         self.long_filename = False
-        self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
+        # self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
+        self.file_name = self._io.read_bytes(8)
         self.short_extension = self._io.read_bytes(3)
 
-        self.read_only = self._io.read_bits_int_be(1)
-        self.hidden = self._io.read_bits_int_be(1)
-        self.is_system_file = self._io.read_bits_int_be(1)
-        self.volume_label = self._io.read_bits_int_be(1)
-        self.subdirectory = self._io.read_bits_int_be(1)
-        self.archive = self._io.read_bits_int_be(1)
-        self.device = self._io.read_bits_int_be(1)
-        self.reserved_atr = self._io.read_bits_int_be(1)
+        self.read_only = self._io.read_bits_int_le(1)
+        self.hidden = self._io.read_bits_int_le(1)
+        self.is_system_file = self._io.read_bits_int_le(1)
+        self.volume_label = self._io.read_bits_int_le(1)
+        self.subdirectory = self._io.read_bits_int_le(1)
+        self.archive = self._io.read_bits_int_le(1)
+        self.device = self._io.read_bits_int_le(1)
+        self.reserved_atr = self._io.read_bits_int_le(1)
 
         self._io.read_bytes(1)  # random stuff
         self._io.read_bytes(1)  # first char of deleted file
@@ -106,7 +107,6 @@ class Filesystem():
 
     def _inflate(self):
         self._io.seek(self._filesystem_offset)
-        # root_dir = FileRec(self._io)
         dirs_left = Queue()
         self._files_list = []
 
@@ -123,13 +123,19 @@ class Filesystem():
             last_long_records = []
             record_offset = 0
             while True:
+                # Empty dir found
+                if curr_cluster == 0:
+                    break
+
                 # Cluster's size is equal to 4096B, first cluster's number is equal to 2
-                # TODO: seek below can be moved to cluster hopping above, by default files will be sequential
+                # TODO: seek below can be moved to cluster hopping, by default files will be sequential
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
                 record = self._read_record()
+                # print(f'record found, type: {type(record).__name__}')
                 # Found an entry regarded as an end-of-chain record
                 if not record:
+                    # print('===-=-=-=-=-=-=-=-=-=-=-=====')
                     root_dir = False
                     break
 
@@ -154,6 +160,7 @@ class Filesystem():
 
                 if self._io.pos() % self._bytes_per_cluster == 0:
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
+                    print('====== [ CLUSTER JUMPED ] ======')
                     if curr_cluster == -1:
                         print('====== [ END OF CLUSTER CHAIN ] ======')
                         break
