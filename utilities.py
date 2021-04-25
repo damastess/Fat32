@@ -16,15 +16,6 @@ def read_unicode_chars(char_nr, _io):
     # return (KaitaiStream.bytes_terminate(_io.read_bytes(char_nr), 0, False)).decode(u'UTF-16')
 
 
-def get_file_name_by_cluster(_files_list, _cluster_number):
-    for file in _files_list:
-        for name, value in file.__dict__.items():
-            if name == "long_filename":
-                break
-            if name == "start_file_in_cluster" and value == _cluster_number:
-                return file
-
-
 class LongFileRec(KaitaiStruct):
     def __init__(self, _io):
         self._io = _io
