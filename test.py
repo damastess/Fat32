@@ -31,17 +31,15 @@ for partition in mbr_data.partitions:
         # print(f'Sectors per cluster: {vfat_partition.boot_sector.bpb.ls_per_clus}')
         # print(f'Bytes per sector: {vfat_partition.boot_sector.bpb.bytes_per_ls}')
 
-        print('===========')
-
         print(f'Partition start offset: {hex(partition_offset)}')
         print(f'FAT offset {hex(partition_offset + vfat_partition.boot_sector.pos_fats)}')
         print(f'FAT size (B): {hex(vfat_partition.boot_sector.size_fat)}')
         print(f'Root dir offset: {hex(filesystem_offset)}')
 
-        # for file in files._files_list:
-        #     print('====')
-        #     for name, value in file.__dict__.items():
-        #         print(name, value)
+        for file in files._files_list:
+            print('====')
+            for name, value in file.__dict__.items():
+                print(name, value)
 
     # TODO: remove when ready
     break

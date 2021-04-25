@@ -121,9 +121,6 @@ class Filesystem():
             if not root_dir:
                 parent_dir = dirs_left.get()
                 curr_cluster = parent_dir.start_file_in_cluster
-
-                # print('========')
-                # print('checking file:', parent_dir.file_name.strip(), parent_dir.short_extension.strip(), 'start_cluster:', parent_dir.start_file_in_cluster)
             else:
                 curr_cluster = 2
 
@@ -140,12 +137,6 @@ class Filesystem():
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
                 record = self._read_record()
-                if type(record).__name__ == 'FileRec':
-                    full_name = record.file_name.strip().decode('utf-8') + '.' + record.short_extension.strip().decode('utf-8')
-                    print(f'rec found, type: {type(record).__name__} in cluster {curr_cluster} offset {record_offset} name {full_name} subdir_flag {record.subdirectory}')
-                else:
-                    print(f'rec found, type: {type(record).__name__} in cluster {curr_cluster} offset {record_offset}')
-
                 # Found an entry regarded as an end-of-chain record
                 if not record:
                     root_dir = False
@@ -157,7 +148,6 @@ class Filesystem():
                    record.subdirectory == 1 and \
                    record.file_name.strip() != b'.' and \
                    record.file_name.strip() != b'..':
-                    print('adding to queue...')
                     dirs_left.put(record)
                 # TODO: store only assembled final files (join long filenames)
                 self._files_list += [record]
