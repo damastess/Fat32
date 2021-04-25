@@ -10,10 +10,7 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
 
 
 def read_unicode_chars(char_nr, _io):
-    # TODO: implement proper unicode parsing (ucs-2)
-    # print(_io.read_bytes(char_nr).decode("ascii", "ignore"))
     return _io.read_bytes(char_nr).decode("ascii", "ignore")
-    # return (KaitaiStream.bytes_terminate(_io.read_bytes(char_nr), 0, False)).decode(u'UTF-16')
 
 
 def get_file_name_by_cluster(_files_list, _cluster_number):
