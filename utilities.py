@@ -14,58 +14,65 @@ class FileRec(KaitaiStruct):
         self._io = _io
         self._read()
 
+    def _read_unicode_chars(self, char_nr):
+        # TODO: implement proper unicode parsing (ucs-2)
+        return self._io.read_bytes(char_nr)
+        # return (KaitaiStream.bytes_terminate(self._io.read_bytes(char_nr), 0, False)).decode(u"UTF-8")
+
     def _read(self):
-        # self._io.read_bytes(8)
         _pos = self._io.pos()
         self.first_byte = self._io.read_u1()
         self._io.seek(_pos)
+        self.long_filename = False
 
-        # TODO: this will not work - long filenames can span multiple
-        #       clusters - no appropreate logic was implemented below to
-        #       accommodate that; fix needed
-        if self.first_byte == b"\0x40":
-            long_dir = True
-            name = ""
-            last_byte = b"\0x40"
-            while long_dir:
-                name_first = (KaitaiStream.bytes_terminate(self._io.read_bytes(10), 0, False)).decode(u"UTF-8")
-                attribute = self._io.read_bytes(1)
-                type = self._io.read_bytes(1)
-                checksum = self._io.read_bytes(1)
-                name_second = (KaitaiStream.bytes_terminate(self._io.read_bytes(12), 0, False)).decode(u"UTF-8")
-                self.fst_clus_lo = self._io.read_bytes(2)
-                name_third = (KaitaiStream.bytes_terminate(self._io.read_bytes(4), 0, False)).decode(u"UTF-8")
-                name += name_first
-                name += name_second
-                name += name_third
-                next_byte = self._io.read_bytes(1)
-                if next_byte != b"\0x40":
-                    last_byte = next_byte
-                    long_dir = False
+        # Long filename record check
+        if self.first_byte & int('0x40', 16):
+            self.long_filename = True
 
-        first = last_byte.decode(u"UTF-8")     # check
-        self.file_name = first + (KaitaiStream.bytes_terminate(self._io.read_bytes(7), 0, False)).decode(u"UTF-8")
-        self.short_extension = self._io.read_bytes(3)
+            self.sequence_nr = self._io.read_u1() ^ int('0x40', 16)
+            file_name_chunk1 = self._read_unicode_chars(10)
+            # self._io.read_bytes(10) # long filename chars 1-5 (unicode, le)
+            self.attribute_byte = self._io.read_u1() # file attribute (must be 0x0F)
+            self.sub_flag = self._io.read_u1() # if zero, this is a subcomponent of a long name
+            self.checksum = self._io.read_u1() # checksum of short filename
+            file_name_chunk2 = self._read_unicode_chars(12)
+            # self._io.read_bytes(12) # long filename chars 6-11 (unicode, le)
+            self.zero_flag = self._io.read_u2le() # must be zero
+            file_name_chunk3 = self._read_unicode_chars(4)
+            # self._io.read_bytes(4) # long filename chars 12-13 (unicode, le)
+            self.file_name = file_name_chunk1 + file_name_chunk2 + file_name_chunk3
 
-        self.read_only = self._io.read_bits_int_be(1)
-        self.hidden = self._io.read_bits_int_be(1)
-        self.is_system_file = self._io.read_bits_int_be(1)
-        self.volume_label = self._io.read_bits_int_be(1)
-        self.subdirectory = self._io.read_bits_int_be(1)
-        self.archive = self._io.read_bits_int_be(1)
-        self.device = self._io.read_bits_int_be(1)
-        self.reserved_atr = self._io.read_bits_int_be(1)
+        else:
+            self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
+            self.short_extension = self._io.read_bytes(3)
 
-        self._io.read_bytes(2)
-        self.high_cluster_nr = self._io.read_u2le()
-        self._io.read_bytes(4)
-        self.access_rights = self._io.read_bytes(2)
-        self.last_modified_time = self._io.read_bytes(2)
-        self.last_modified_date = self._io.read_bytes(2)
-        self.low_cluster_nr = self._io.read_u2le()
-        self.file_size = self._io.read_u4le()
-        # TODO: check if cluster_nr reconstruction is done properly
-        self.start_file_in_cluster = self.high_cluster_nr * 65536 + self.low_cluster_nr
+            self.read_only = self._io.read_bits_int_be(1)
+            self.hidden = self._io.read_bits_int_be(1)
+            self.is_system_file = self._io.read_bits_int_be(1)
+            self.volume_label = self._io.read_bits_int_be(1)
+            self.subdirectory = self._io.read_bits_int_be(1)
+            self.archive = self._io.read_bits_int_be(1)
+            self.device = self._io.read_bits_int_be(1)
+            self.reserved_atr = self._io.read_bits_int_be(1)
+
+            self._io.read_bytes(1) # random stuff
+            self._io.read_bytes(1) # first char of deleted file
+            self._io.read_bytes(2) # create time hhmmss
+            self._io.read_bytes(2) # create time yymmdd
+            self._io.read_bytes(2) # owner id
+            self.high_cluster_nr = self._io.read_u2le() # start of file - high two bytes
+            self._io.read_bytes(2) # last modified time
+            self._io.read_bytes(2) # last modified date
+            self.low_cluster_nr = self._io.read_u2le() # start of file - low two bytes
+            self._io.read_bytes(4) # filesize in bytes
+
+
+            # long filenames start with 0x40 bit on
+            # ordering is reverse (oldest first)
+            # all long name records have 0x0F in flags byte
+
+            self.start_file_in_cluster = self.high_cluster_nr * 65536 + self.low_cluster_nr
+            print(f'===== {self.high_cluster_nr} {self.low_cluster_nr}')
 
     def __str__(self):
         print(f'Filename: {self.file_name}\n'
@@ -108,6 +115,7 @@ class Filesystem():
                         break
 
                 # Cluster's size is equal to 4096B, first cluster's number is equal to 2
+                # TODO: seek below can be moved to cluster hopping above, by default files will be sequential
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
                 aux = FileRec(self._io)
 
