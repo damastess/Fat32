@@ -10,10 +10,7 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
 
 
 def read_unicode_chars(char_nr, _io):
-    # TODO: implement proper unicode parsing (ucs-2)
-    # print(_io.read_bytes(char_nr).decode("ascii", "ignore"))
     return _io.read_bytes(char_nr).decode("ascii", "ignore")
-    # return (KaitaiStream.bytes_terminate(_io.read_bytes(char_nr), 0, False)).decode(u'UTF-16')
 
 
 class LongFileRec(KaitaiStruct):
@@ -136,6 +133,7 @@ class Filesystem():
                     break
 
                 # Cluster's size is equal to 4096B, first cluster's number is equal to 2
+                # TODO: test cluster hopping in more elaborate circumstances (bigger directories for one)
                 # TODO: seek below can be moved to cluster hopping, by default files will be sequential
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
@@ -152,8 +150,6 @@ class Filesystem():
                    record.file_name.strip() != b'.' and \
                    record.file_name.strip() != b'..':
                     dirs_left.put(record)
-                # TODO: store only assembled final files (join long filenames)
-                self._files_list += [record]
 
                 # First short entry after long series
                 if not record.long_filename and long_filename_series:
@@ -164,6 +160,8 @@ class Filesystem():
                 elif record.long_filename:
                     last_long_records += [record]
                     long_filename_series = True
+
+                self._files_list += [record]
 
                 # Record size is 32B
                 record_offset += 32
