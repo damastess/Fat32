@@ -10,8 +10,8 @@ from utilities import FATProxy, Filesystem
 
 MBR_SECTOR_SIZE = 512
 
-mbr_data = MbrPartitionTable.from_file('noobs1gb.img')
-# mbr_data = MbrPartitionTable.from_file('pen.dd')
+# mbr_data = MbrPartitionTable.from_file('noobs1gb.img')
+mbr_data = MbrPartitionTable.from_file('pen.dd')
 
 for partition in mbr_data.partitions:
     if partition.lba_start != 0:
