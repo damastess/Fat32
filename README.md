@@ -1,10 +1,10 @@
 # What is this?
 
-This is a crude tool created as a part of an assignment during computer
-forensics course, extracting file metadata basing on the user-provided
-sector contained by the file. Currently (possibly ever) only FAT32
-partition format, along with basic (no extended partitions) MBR partition
-table format is supported.
+This repo contains a crude implementation of a tool created as a part
+of an assignment during computer forensics course, extracting file
+metadata based on the user-provided sector contained by the file.
+Currently (possibly ever) only FAT32 partition format, along with
+basic (no extended partitions) MBR partition table format is supported.
 
 ## Installation
 
