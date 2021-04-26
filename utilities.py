@@ -163,15 +163,12 @@ class Filesystem():
                     root_dir = False
                     break
 
-                # Ignoring current and parent dirs
-                if record.file_name.strip() == b'.' and \
-                   record.file_name.strip() == b'..':
-                    continue
-
                 # Not a long filename, but a subdirectory
                 # TODO: make this code sane
                 if not record.long_filename and \
-                   record.subdirectory == 1:
+                   record.subdirectory == 1 and \
+                   record.file_name.strip() != b'.' and \
+                   record.file_name.strip() != b'..':
                     dirs_left.put(record)
 
                 if not record.long_filename and long_filename_series:
