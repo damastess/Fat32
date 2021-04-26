@@ -1,4 +1,4 @@
-from kaitaistruct import KaitaiStruct, KaitaiStream  # , BytesIO
+from kaitaistruct import KaitaiStruct
 from pkg_resources import parse_version
 from bidict import bidict
 import kaitaistruct
