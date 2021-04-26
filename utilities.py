@@ -10,9 +10,10 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
 
 
 class LongFileRec(KaitaiStruct):
-    def __init__(self, _io):
+    def __init__(self, _io, deleted_file=False):
         self._io = _io
         self._offset = self._io.pos()
+        self.deleted = deleted_file
         self._read()
 
     def _read(self):
@@ -34,15 +35,17 @@ class LongFileRec(KaitaiStruct):
         file_name_chunk3 = self._io.read_bytes(4).decode('ascii', 'ignore')
         self.file_name = file_name_chunk1 + file_name_chunk2 + file_name_chunk3
 
+    def __str__(self):
         print(f'Filename: {self.file_name}\n'
               f'Is long: {self.long_filename}\n'
               f'Seq_nr: {self.sequence_nr}\n')
 
 
 class FileRec(KaitaiStruct):
-    def __init__(self, _io):
+    def __init__(self, _io, deleted_file=False):
         self._io = _io
         self._offset = self._io.pos()
+        self.deleted = deleted_file
         self._read()
 
     def _read(self):
@@ -114,15 +117,21 @@ class Filesystem():
         flag_byte = self._io.read_u1()
         self._io.seek(_pos)
 
+        deleted_file = False
         # TODO: switch to a saner value representation
-        # Removed entry
-        if first_byte == int('0xE5', 16):
-            return None
-        # Long filename
+        if first_byte == int('0xE5', 16) or \
+           first_byte == int('0x05', 16):
+            # Removed / pending delete entry
+            deleted_file = True
+
+        if first_byte == int('0x2E', 16):
+            # Dot entry
+            return -1
         elif flag_byte == int('0x0F', 16):
-            return LongFileRec(self._io)
+            # Long filename
+            return LongFileRec(self._io, deleted_file)
         elif first_byte != 0:
-            return FileRec(self._io)
+            return FileRec(self._io, deleted_file)
         else:
             return None
 
@@ -158,14 +167,12 @@ class Filesystem():
                 self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
 
                 record = self._read_record()
-                # Found an entry regarded as an end-of-chain record
                 if not record:
+                    # Found an entry regarded as an end-of-chain record
                     root_dir = False
                     break
-
-                # Ignoring current and parent dirs
-                if record.file_name.strip() == b'.' or \
-                   record.file_name.strip() == b'..':
+                elif record == -1:
+                    # Ignoring current and parent dirs ('.' '..')
                     record_offset += 32
                     continue
 
@@ -178,8 +185,8 @@ class Filesystem():
                     record = self._long_files_record(last_long_records, record)
                     last_long_records = []
                     long_filename_series = False
-                # Another long entry in series
                 elif record.long_filename:
+                    # Another long entry in series
                     last_long_records += [record]
                     long_filename_series = True
 
