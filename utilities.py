@@ -9,20 +9,17 @@ if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
     raise Exception('Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s' % (kaitaistruct.__version__))
 
 
-def read_unicode_chars(char_nr, _io):
-    return _io.read_bytes(char_nr).decode("ascii", "ignore")
-
-
 class LongFileRec(KaitaiStruct):
     def __init__(self, _io):
         self._io = _io
+        self._offset = self._io.pos()
         self._read()
 
     def _read(self):
         self.long_filename = True
         self.sequence_nr = self._io.read_u1() ^ int('0x40', 16)
         # long filename chars 1-5 (unicode, le)
-        file_name_chunk1 = read_unicode_chars(10, self._io)
+        file_name_chunk1 = self._io.read_bytes(10).decode('ascii', 'ignore')
         # file attribute (must be 0x0F)
         self.attribute_byte = self._io.read_u1()
         # if zero, this is a subcomponent of a long name
@@ -30,22 +27,28 @@ class LongFileRec(KaitaiStruct):
         # checksum of short filename
         self.checksum = self._io.read_u1()
         # long filename chars 6-11 (unicode, le)
-        file_name_chunk2 = read_unicode_chars(12, self._io)
+        file_name_chunk2 = self._io.read_bytes(12).decode('ascii', 'ignore')
         # must be zero
         self.zero_flag = self._io.read_u2le()
         # long filename chars 12-13 (unicode, le)
-        file_name_chunk3 = read_unicode_chars(4, self._io)
+        file_name_chunk3 = self._io.read_bytes(4).decode('ascii', 'ignore')
         self.file_name = file_name_chunk1 + file_name_chunk2 + file_name_chunk3
+
+        print(f'Filename: {self.file_name}\n'
+              f'Is long: {self.long_filename}\n'
+              f'Seq_nr: {self.sequence_nr}\n')
 
 
 class FileRec(KaitaiStruct):
     def __init__(self, _io):
         self._io = _io
+        self._offset = self._io.pos()
         self._read()
 
     def _read(self):
         self.long_filename = False
         self.file_name = self._io.read_bytes(8)
+        self.full_file_name = self.file_name
         self.short_extension = self._io.read_bytes(3)
 
         self.read_only = self._io.read_bits_int_le(1)
@@ -82,7 +85,8 @@ class FileRec(KaitaiStruct):
 
     def __str__(self):
         print(f'Filename: {self.file_name}\n'
-              f'Subdirectory: {self.subdirectory}\n'
+              f'Is_long: {self.long_filename}\n'
+              f'Full filename: {self.full_file_name}\n'
               f'Start_file_in_cluster: {self.start_file_in_cluster}\n'
               f'File_size: {self.file_size}\n'
               f'Subdirectory: {self.subdirectory}\n'
@@ -115,8 +119,7 @@ class Filesystem():
         if first_byte == int('0xE5', 16):
             return None
         # Long filename
-        elif first_byte & int('0x40', 16) and \
-                flag_byte == int('0x0F', 16):
+        elif flag_byte == int('0x0F', 16):
             return LongFileRec(self._io)
         elif first_byte != 0:
             return FileRec(self._io)
@@ -124,10 +127,8 @@ class Filesystem():
             return None
 
     def _long_files_record(self, long_files, last_record):
-        full_name = ''
-        for record in long_files:
-            full_name = str(record.file_name).strip() + full_name
-        last_record.file_name = full_name
+        last_record.full_file_name = ''.join(
+            str(rec.file_name).strip() for rec in long_files[::-1])
         return last_record
 
     def _inflate(self):

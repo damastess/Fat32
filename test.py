@@ -12,7 +12,8 @@ MBR_SECTOR_SIZE = 512
 START_SECTOR = 16693 #6200
 
 # mbr_data = MbrPartitionTable.from_file('noobs1gb.img')
-mbr_data = MbrPartitionTable.from_file('11-carve-fat.dd')
+mbr_data = MbrPartitionTable.from_file('pen.dd')
+# mbr_data = MbrPartitionTable.from_file('11-carve-fat.dd')
 
 last_part_start = 0
 main_partition = mbr_data.partitions[0]
