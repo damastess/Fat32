@@ -137,9 +137,7 @@ class Filesystem():
         self._files_list = []
 
         root_dir = True
-        it = 0
-        while it < 10 and (not dirs_left.empty() or root_dir):
-            it += 1
+        while not dirs_left.empty() or root_dir:
             if not root_dir:
                 parent_dir = dirs_left.get()
                 curr_cluster = parent_dir.start_file_in_cluster
