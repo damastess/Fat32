@@ -163,16 +163,18 @@ class Filesystem():
                     root_dir = False
                     break
 
+                # Ignoring current and parent dirs
+                if record.file_name.strip() == b'.' or \
+                   record.file_name.strip() == b'..':
+                    record_offset += 32
+                    continue
+
                 # Not a long filename, but a subdirectory
-                # TODO: make this code sane
                 if not record.long_filename and \
-                   record.subdirectory == 1 and \
-                   record.file_name.strip() != b'.' and \
-                   record.file_name.strip() != b'..':
+                   record.subdirectory == 1:
                     dirs_left.put(record)
 
                 if not record.long_filename and long_filename_series:
-                    # TODO: assemble last long records into one record here
                     record = self._long_files_record(last_long_records, record)
                     last_long_records = []
                     long_filename_series = False
