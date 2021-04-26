@@ -1,7 +1,7 @@
 # TODO: remove when not needed anymore
 # %%
-#%load_ext autoreload
-#%autoreload 2
+%load_ext autoreload
+%autoreload 2
 
 # %%
 from kaitai_generated.vfat import Vfat

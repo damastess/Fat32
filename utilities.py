@@ -6,7 +6,7 @@ from queue import Queue
 
 
 if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
-    raise Exception("Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s" % (kaitaistruct.__version__))
+    raise Exception('Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s' % (kaitaistruct.__version__))
 
 
 def read_unicode_chars(char_nr, _io):
@@ -21,13 +21,20 @@ class LongFileRec(KaitaiStruct):
     def _read(self):
         self.long_filename = True
         self.sequence_nr = self._io.read_u1() ^ int('0x40', 16)
-        file_name_chunk1 = read_unicode_chars(10, self._io)  # long filename chars 1-5 (unicode, le)
-        self.attribute_byte = self._io.read_u1()  # file attribute (must be 0x0F)
-        self.sub_flag = self._io.read_u1()  # if zero, this is a subcomponent of a long name
-        self.checksum = self._io.read_u1()  # checksum of short filename
-        file_name_chunk2 = read_unicode_chars(12, self._io)  # long filename chars 6-11 (unicode, le)
-        self.zero_flag = self._io.read_u2le()  # must be zero
-        file_name_chunk3 = read_unicode_chars(4, self._io)  # long filename chars 12-13 (unicode, le)
+        # long filename chars 1-5 (unicode, le)
+        file_name_chunk1 = read_unicode_chars(10, self._io)
+        # file attribute (must be 0x0F)
+        self.attribute_byte = self._io.read_u1()
+        # if zero, this is a subcomponent of a long name
+        self.sub_flag = self._io.read_u1()
+        # checksum of short filename
+        self.checksum = self._io.read_u1()
+        # long filename chars 6-11 (unicode, le)
+        file_name_chunk2 = read_unicode_chars(12, self._io)
+        # must be zero
+        self.zero_flag = self._io.read_u2le()
+        # long filename chars 12-13 (unicode, le)
+        file_name_chunk3 = read_unicode_chars(4, self._io)
         self.file_name = file_name_chunk1 + file_name_chunk2 + file_name_chunk3
 
 
@@ -38,7 +45,6 @@ class FileRec(KaitaiStruct):
 
     def _read(self):
         self.long_filename = False
-        # self.file_name = (KaitaiStream.bytes_terminate(self._io.read_bytes(8), 0, False)).decode(u"UTF-8")
         self.file_name = self._io.read_bytes(8)
         self.short_extension = self._io.read_bytes(3)
 
@@ -51,19 +57,28 @@ class FileRec(KaitaiStruct):
         self.device = self._io.read_bits_int_le(1)
         self.reserved_atr = self._io.read_bits_int_le(1)
 
-        self._io.read_bytes(1)  # random stuff
-        self._io.read_bytes(1)  # first char of deleted file
-        self._io.read_bytes(2)  # create time hhmmss
-        self._io.read_bytes(2)  # create time yymmdd
-        self._io.read_bytes(2)  # owner id
-        high_cluster_nr = self._io.read_u2le()  # start of file - high two bytes
-        self._io.read_bytes(2)  # last modified time
-        self._io.read_bytes(2)  # last modified date
-        low_cluster_nr = self._io.read_u2le()  # start of file - low two bytes
-        self._io.read_bytes(4)  # filesize in bytes
+        # random stuff
+        self._io.read_bytes(1)
+        # first char of deleted file
+        self._io.read_bytes(1)
+        # create time hhmmss
+        self._io.read_bytes(2)
+        # create time yymmdd
+        self._io.read_bytes(2)
+        # owner id
+        self._io.read_bytes(2)
+        # start of file - high two bytes
+        high_cluster_nr = self._io.read_u2le()
+        # last modified time
+        self._io.read_bytes(2)
+        # last modified date
+        self._io.read_bytes(2)
+        # start of file - low two bytes
+        low_cluster_nr = self._io.read_u2le()
+        # filesize in bytes
+        self._io.read_bytes(4)
 
         self.start_file_in_cluster = high_cluster_nr * 65536 + low_cluster_nr
-        # print(f'===== {self.high_cluster_nr} {self.low_cluster_nr} {self.start_file_in_cluster}')
 
     def __str__(self):
         print(f'Filename: {self.file_name}\n'
@@ -95,13 +110,13 @@ class Filesystem():
         flag_byte = self._io.read_u1()
         self._io.seek(_pos)
 
-        # TODO: cleanup needed below
+        # TODO: switch to a saner value representation
         # Removed entry
         if first_byte == int('0xE5', 16):
             return None
-
-        # Long filename check
-        if first_byte & int('0x40', 16) and flag_byte == int('0x0F', 16):
+        # Long filename
+        elif first_byte & int('0x40', 16) and \
+                flag_byte == int('0x0F', 16):
             return LongFileRec(self._io)
         elif first_byte != 0:
             return FileRec(self._io)
@@ -113,7 +128,6 @@ class Filesystem():
         dirs_left = Queue()
         self._files_list = []
 
-        # Dirty workaround
         root_dir = True
         it = 0
         while it < 10 and (not dirs_left.empty() or root_dir):
