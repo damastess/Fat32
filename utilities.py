@@ -126,8 +126,7 @@ class Filesystem():
     def _long_files_record(self, long_files, last_record):
         full_name = ''
         for record in long_files:
-            full_name += str(record.file_name)
-        full_name += str(last_record.file_name)
+            full_name = str(record.file_name).strip() + full_name
         last_record.file_name = full_name
         return last_record
 
