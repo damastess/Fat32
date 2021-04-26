@@ -123,6 +123,14 @@ class Filesystem():
         else:
             return None
 
+    def _long_files_record(self, long_files, last_record):
+        full_name = ''
+        for record in long_files:
+            full_name += str(record.file_name)
+        full_name += str(last_record.file_name)
+        last_record.file_name = full_name
+        return last_record
+
     def _inflate(self):
         self._io.seek(self._filesystem_offset)
         dirs_left = Queue()
@@ -157,18 +165,20 @@ class Filesystem():
                     root_dir = False
                     break
 
+                # Ignoring current and parent dirs
+                if record.file_name.strip() == b'.' and \
+                   record.file_name.strip() == b'..':
+                    continue
+
                 # Not a long filename, but a subdirectory
                 # TODO: make this code sane
                 if not record.long_filename and \
-                   record.subdirectory == 1 and \
-                   record.file_name.strip() != b'.' and \
-                   record.file_name.strip() != b'..':
+                   record.subdirectory == 1:
                     dirs_left.put(record)
 
                 if not record.long_filename and long_filename_series:
                     # TODO: assemble last long records into one record here
-                    r = self._long_files_record(last_long_records, record)
-                    record = r
+                    record = self._long_files_record(last_long_records, record)
                     last_long_records = []
                     long_filename_series = False
                 # Another long entry in series
@@ -187,23 +197,6 @@ class Filesystem():
                     curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
                     if curr_cluster == -1:
                         break
-
-                # Record size is 32B
-                record_offset += 32
-
-                if self._io.pos() % self._bytes_per_cluster == 0:
-                    record_offset = 0
-                    curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
-                    if curr_cluster == -1:
-                        break
-
-    def _long_files_record(self, long_files, last_record):
-        full_name = ""
-        for record in long_files:
-            full_name += str(record.file_name)
-        full_name += str(last_record.file_name)
-        last_record.file_name = full_name
-        return last_record
 
 
 class FATProxy:
