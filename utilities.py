@@ -47,6 +47,7 @@ class FileRec(KaitaiStruct):
         self._offset = self._io.pos()
         self.deleted = deleted_file
         self._read()
+        self.pprint()
 
     def _read(self):
         self.long_filename = False
@@ -68,17 +69,17 @@ class FileRec(KaitaiStruct):
         # first char of deleted file
         self._io.read_bytes(1)
         # create time hhmmss
-        self._io.read_bytes(2)
+        self.created_time = self._io.read_bytes(2)
         # create time yymmdd
-        self._io.read_bytes(2)
+        self.created_date = self._io.read_bytes(2)
         # owner id
         self._io.read_bytes(2)
         # start of file - high two bytes
         high_cluster_nr = self._io.read_u2le()
         # last modified time
-        self._io.read_bytes(2)
+        self.last_modified_time = self._io.read_bytes(2)
         # last modified date
-        self._io.read_bytes(2)
+        self.last_modified_date = self._io.read_bytes(2)
         # start of file - low two bytes
         low_cluster_nr = self._io.read_u2le()
         # filesize in bytes
@@ -96,7 +97,18 @@ class FileRec(KaitaiStruct):
               f'Volume_label: {self.volume_label}\n'
               f'high_cluster_nr: {self.high_cluster_nr}\n'
               f'low_cluster_nr: {self.low_cluster_nr}\n')
-
+    def pprint(self):
+        print(f'Full filename: {self.full_file_name}\n'
+              f'Is LongFile: {self.long_filename}\n'
+              f'Short extension: {self.short_extension}\n'
+              f'Created time: {self.created_date} {self.created_time}\n'
+              f'Last modified time: {self.last_modified_date} {self.last_modified_time}\n'
+              f'Is ReadOnly: {self.read_only}\n'
+              f'Is Hidden: {self.hidden}\n'
+              f'Is System File: {self.is_system_file}\n'
+              f'Is Volume Label: {self.volume_label}\n'
+              f'Is Subdirectory: {self.subdirectory}\n'
+              f'Is Archive: {self.archive}\n')
 
 class Filesystem():
     def __init__(self, fat_proxy, filesystem_offset, bytes_per_cluster, io):
