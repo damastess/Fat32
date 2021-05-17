@@ -67,6 +67,5 @@ if __name__ == '__main__':
             if not file.long_filename:
                 if file.start_file_in_cluster == start_cluster_of_searching_file:
                     print('==================')
-                    for name, value in file.__dict__.items():
-                        print(name, value)
+                    file.pprint()
                     break

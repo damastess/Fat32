@@ -47,7 +47,6 @@ class FileRec(KaitaiStruct):
         self._offset = self._io.pos()
         self.deleted = deleted_file
         self._read()
-        self.pprint()
 
     def _read(self):
         self.long_filename = False
@@ -69,18 +68,27 @@ class FileRec(KaitaiStruct):
         # first char of deleted file
         self._io.read_bytes(1)
         # create time hhmmss
-        self.created_time = self._io.read_bytes(2)
+        self.created_time_seconds = self._io.read_bits_int_le(5)
+        self.created_time_minutes = self._io.read_bits_int_le(6)
+        self.created_time_hours = self._io.read_bits_int_le(5)
+
         # create time yymmdd
-        self.created_date = self._io.read_bytes(2)
+        self.created_date_day = self._io.read_bits_int_le(5)
+        self.created_date_month = self._io.read_bits_int_le(4)
+        self.created_date_year = self._io.read_bits_int_le(7)
+
         # owner id
         self._io.read_bytes(2)
         # start of file - high two bytes
         high_cluster_nr = self._io.read_u2le()
         # last modified time
-        self.last_modified_time = self._io.read_bytes(2)
+        self.last_modified_time_seconds = self._io.read_bits_int_le(5)
+        self.last_modified_time_minutes = self._io.read_bits_int_le(6)
+        self.last_modified_time_hours = self._io.read_bits_int_le(5)
         # last modified date
-        self.last_modified_date = self._io.read_bytes(2)
-        # start of file - low two bytes
+        self.last_modified_day = self._io.read_bits_int_le(5)
+        self.last_modified_month = self._io.read_bits_int_le(4)
+        self.last_modified_year = self._io.read_bits_int_le(7)        # start of file - low two bytes
         low_cluster_nr = self._io.read_u2le()
         # filesize in bytes
         self._io.read_bytes(4)
@@ -98,17 +106,20 @@ class FileRec(KaitaiStruct):
               f'high_cluster_nr: {self.high_cluster_nr}\n'
               f'low_cluster_nr: {self.low_cluster_nr}\n')
     def pprint(self):
+
         print(f'Full filename: {self.full_file_name}\n'
               f'Is LongFile: {self.long_filename}\n'
+              f'Is Deleted: {self.deleted}\n'
               f'Short extension: {self.short_extension}\n'
-              f'Created time: {self.created_date} {self.created_time}\n'
-              f'Last modified time: {self.last_modified_date} {self.last_modified_time}\n'
+              f'Created time: {self.created_date_day}/{self.created_date_month}/{(1980 + self.created_date_year)} {self.created_time_hours}:{self.created_time_minutes}:{self.created_time_seconds}\n'
+              f'Last modified time: {self.last_modified_day}/{self.last_modified_month}/{(1980 + self.last_modified_year)} {self.last_modified_time_hours}:{self.last_modified_time_minutes}:{self.last_modified_time_seconds}\n'
               f'Is ReadOnly: {self.read_only}\n'
               f'Is Hidden: {self.hidden}\n'
               f'Is System File: {self.is_system_file}\n'
               f'Is Volume Label: {self.volume_label}\n'
               f'Is Subdirectory: {self.subdirectory}\n'
-              f'Is Archive: {self.archive}\n')
+              f'Is Archive: {self.archive}\n'
+              f'Start file in cluster: {self.start_file_in_cluster}\n')
 
 class Filesystem():
     def __init__(self, fat_proxy, filesystem_offset, bytes_per_cluster, io):
