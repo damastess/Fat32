@@ -126,6 +126,7 @@ class FileRec(KaitaiStruct):
                 f'Created: {self.created_date_time}\n'
                 f'Last modified: {self.last_modified_date_time}\n'
                 f'First file cluster nr: {self.file_first_cluster_nr}\n'
+                f'File absolute offset (B): {self._offset}\n'
                 f'File size (B): {0 if self.volume_label or self.subdirectory else self.file_size}\n'
                 f'Is long: {self.long_filename}\n'
                 f'Is deleted: {self.deleted} \n'
