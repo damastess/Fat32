@@ -21,6 +21,7 @@ def setup():
 
 
 if __name__ == '__main__':
+    # TODO: refactor code below
     args = setup()
     print("===================================================================================")
     print("Arguments: ")
@@ -59,13 +60,13 @@ if __name__ == '__main__':
             break
 
     if searching_cluster == -1:
-        print("Error, couldn't find cluster for picked sector")
+        print('Error, couldn\'t find cluster for picked sector')
     else:
         start_cluster_of_searching_file = fat_proxy.get_first_cluster(searching_cluster)
 
         for file in files._files_list:
-            if not file.long_filename:
-                if file.start_file_in_cluster == start_cluster_of_searching_file:
-                    print('==================')
-                    file.pprint()
-                    break
+            if not file.long_filename and  \
+               file.start_file_in_cluster == start_cluster_of_searching_file:
+                print('==================')
+                print(file)
+                break

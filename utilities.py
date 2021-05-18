@@ -3,10 +3,12 @@ from pkg_resources import parse_version
 from bidict import bidict
 import kaitaistruct
 from queue import Queue
+from datetime import datetime
 
 
 if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
-    raise Exception('Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s' % (kaitaistruct.__version__))
+    raise Exception('Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s' % (
+        kaitaistruct.__version__))
 
 
 class LongFileRec(KaitaiStruct):
@@ -42,10 +44,10 @@ class LongFileRec(KaitaiStruct):
 
 
 class FileRec(KaitaiStruct):
-    def __init__(self, _io, deleted_file=False):
+    def __init__(self, _io, was_deleted=False):
         self._io = _io
         self._offset = self._io.pos()
-        self.deleted = deleted_file
+        self.deleted = was_deleted
         self._read()
 
     def _read(self):
@@ -54,19 +56,20 @@ class FileRec(KaitaiStruct):
         self.full_file_name = self.file_name
         self.short_extension = self._io.read_bytes(3)
 
-        self.read_only = self._io.read_bits_int_le(1)
-        self.hidden = self._io.read_bits_int_le(1)
-        self.is_system_file = self._io.read_bits_int_le(1)
-        self.volume_label = self._io.read_bits_int_le(1)
-        self.subdirectory = self._io.read_bits_int_le(1)
-        self.archive = self._io.read_bits_int_le(1)
-        self.device = self._io.read_bits_int_le(1)
-        self.reserved_atr = self._io.read_bits_int_le(1)
+        self.read_only = bool(self._io.read_bits_int_le(1))
+        self.hidden = bool(self._io.read_bits_int_le(1))
+        self.is_system_file = bool(self._io.read_bits_int_le(1))
+        self.volume_label = bool(self._io.read_bits_int_le(1))
+        self.subdirectory = bool(self._io.read_bits_int_le(1))
+        self.archive = bool(self._io.read_bits_int_le(1))
+        self.device = bool(self._io.read_bits_int_le(1))
+        self.reserved_atr = bool(self._io.read_bits_int_le(1))
 
         # random stuff
         self._io.read_bytes(1)
-        # first char of deleted file
+        # first char of deleted file or misc
         self._io.read_bytes(1)
+
         # create time hhmmss
         self.created_time_seconds = self._io.read_bits_int_le(5)
         self.created_time_minutes = self._io.read_bits_int_le(6)
@@ -81,45 +84,58 @@ class FileRec(KaitaiStruct):
         self._io.read_bytes(2)
         # start of file - high two bytes
         high_cluster_nr = self._io.read_u2le()
+
         # last modified time
         self.last_modified_time_seconds = self._io.read_bits_int_le(5)
         self.last_modified_time_minutes = self._io.read_bits_int_le(6)
         self.last_modified_time_hours = self._io.read_bits_int_le(5)
+
         # last modified date
         self.last_modified_day = self._io.read_bits_int_le(5)
         self.last_modified_month = self._io.read_bits_int_le(4)
-        self.last_modified_year = self._io.read_bits_int_le(7)        # start of file - low two bytes
-        low_cluster_nr = self._io.read_u2le()
-        # filesize in bytes
-        self._io.read_bytes(4)
+        self.last_modified_year = self._io.read_bits_int_le(7)
 
-        self.start_file_in_cluster = high_cluster_nr * 65536 + low_cluster_nr
+        # start of file - low two bytes
+        low_cluster_nr = self._io.read_u2le()
+        # file size in bytes
+        self.file_size = self._io.read_bits_int_le(4)
+
+        self.created_date_time = datetime(
+            second=self.created_time_seconds,
+            minute=self.created_time_minutes,
+            hour=self.created_time_hours,
+            day=self.created_date_day,
+            month=self.created_date_month,
+            year=self.created_date_year + 1980)
+
+        self.last_modified_date_time = datetime(
+            second=self.last_modified_time_seconds,
+            minute=self.last_modified_time_minutes,
+            hour=self.last_modified_time_hours,
+            day=self.last_modified_day,
+            month=self.last_modified_month,
+            year=self.last_modified_year + 1980)
+
+        self.file_first_cluster_nr = high_cluster_nr * 65536 + low_cluster_nr
 
     def __str__(self):
-        print(f'Filename: {self.file_name}\n'
-              f'Is_long: {self.long_filename}\n'
-              f'Full filename: {self.full_file_name}\n'
-              f'Start_file_in_cluster: {self.start_file_in_cluster}\n'
-              f'File_size: {self.file_size}\n'
-              f'Subdirectory: {self.subdirectory}\n'
-              f'Volume_label: {self.volume_label}\n'
-              f'high_cluster_nr: {self.high_cluster_nr}\n'
-              f'low_cluster_nr: {self.low_cluster_nr}\n')
-    def pprint(self):
+        # TODO: add sector/byte offset from disc beginning
+        return (f'Full filename: {self.full_file_name}\n'
+                f'Short filename: {self.file_name}\n'
+                f'Short extension: {self.short_extension}\n'
+                f'Created: {self.created_date_time}\n'
+                f'Last modified: {self.last_modified_date_time}\n'
+                f'First file cluster nr: {self.file_first_cluster_nr}\n'
+                f'File size (B): {0 if self.volume_label or self.subdirectory else self.file_size}\n'
+                f'Is long: {self.long_filename}\n'
+                f'Is deleted: {self.deleted} \n'
+                f'Is readOnly: {self.read_only}\n'
+                f'Is hidden: {self.hidden}\n'
+                f'Is system File: {self.is_system_file}\n'
+                f'Is volume Label: {self.volume_label}\n'
+                f'Is subdirectory: {self.subdirectory}\n'
+                f'Is archive: {self.archive}\n')
 
-        print(f'Full filename: {self.full_file_name}\n'
-              f'Is LongFile: {self.long_filename}\n'
-              f'Is Deleted: {self.deleted}\n'
-              f'Short extension: {self.short_extension}\n'
-              f'Created time: {self.created_date_day}/{self.created_date_month}/{(1980 + self.created_date_year)} {self.created_time_hours}:{self.created_time_minutes}:{self.created_time_seconds}\n'
-              f'Last modified time: {self.last_modified_day}/{self.last_modified_month}/{(1980 + self.last_modified_year)} {self.last_modified_time_hours}:{self.last_modified_time_minutes}:{self.last_modified_time_seconds}\n'
-              f'Is ReadOnly: {self.read_only}\n'
-              f'Is Hidden: {self.hidden}\n'
-              f'Is System File: {self.is_system_file}\n'
-              f'Is Volume Label: {self.volume_label}\n'
-              f'Is Subdirectory: {self.subdirectory}\n'
-              f'Is Archive: {self.archive}\n'
-              f'Start file in cluster: {self.start_file_in_cluster}\n')
 
 class Filesystem():
     def __init__(self, fat_proxy, filesystem_offset, bytes_per_cluster, io):
@@ -158,9 +174,11 @@ class Filesystem():
         else:
             return None
 
-    def _long_files_record(self, long_files, last_record):
+    def _assemble_long_record(self, long_files, last_record):
         last_record.full_file_name = ''.join(
             str(rec.file_name).strip() for rec in long_files[::-1])
+        if long_files:
+            last_record.long_filename = True
         return last_record
 
     def _inflate(self):
@@ -172,7 +190,7 @@ class Filesystem():
         while not dirs_left.empty() or root_dir:
             if not root_dir:
                 parent_dir = dirs_left.get()
-                curr_cluster = parent_dir.start_file_in_cluster
+                curr_cluster = parent_dir.file_first_cluster_nr
             else:
                 curr_cluster = 2
 
@@ -184,10 +202,14 @@ class Filesystem():
                 if curr_cluster == 0:
                     break
 
-                # Cluster's size is equal to 4096B, first cluster's number is equal to 2
-                # TODO: test cluster hopping in more elaborate circumstances (bigger directories for one)
-                # TODO: seek below can be moved to cluster hopping, by default files will be sequential
-                self._io.seek(self._filesystem_offset + (curr_cluster - 2) * self._bytes_per_cluster + record_offset)
+                # Cluster's size is equal to 4096B, first cluster's number
+                # is equal to 2
+                # TODO: test cluster hopping in more elaborate circumstances
+                #       (bigger directories for one)
+                # TODO: seek below can be moved to cluster hopping, by default
+                #       files will be sequential
+                self._io.seek(self._filesystem_offset + (curr_cluster - 2)
+                              * self._bytes_per_cluster + record_offset)  # noqa: W503
 
                 record = self._read_record()
                 if not record:
@@ -201,11 +223,12 @@ class Filesystem():
 
                 # Not a long filename, but a subdirectory
                 if not record.long_filename and \
-                   record.subdirectory == 1:
+                   record.subdirectory is True:
                     dirs_left.put(record)
 
                 if not record.long_filename and long_filename_series:
-                    record = self._long_files_record(last_long_records, record)
+                    record = self._assemble_long_record(
+                        last_long_records, record)
                     last_long_records = []
                     long_filename_series = False
                 elif record.long_filename:
@@ -221,7 +244,8 @@ class Filesystem():
 
                 if self._io.pos() % self._bytes_per_cluster == 0:
                     record_offset = 0
-                    curr_cluster = self._fat_proxy.get_next_cluster(curr_cluster)
+                    curr_cluster = self._fat_proxy.get_next_cluster(
+                        curr_cluster)
                     if curr_cluster == -1:
                         break
 
