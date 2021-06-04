@@ -138,7 +138,7 @@ class FileRec(KaitaiStruct):
                 f'Is archive: {self.archive}\n')
 
 
-class Filesystem():
+class Filesystem:
     def __init__(self, fat_proxy, filesystem_offset, bytes_per_cluster, io):
         self._fat_proxy = fat_proxy
         self._filesystem_offset = filesystem_offset
@@ -178,8 +178,6 @@ class Filesystem():
     def _assemble_long_record(self, long_files, last_record):
         last_record.full_file_name = ''.join(
             str(rec.file_name).strip() for rec in long_files[::-1])
-        if long_files:
-            last_record.long_filename = True
         return last_record
 
     def _inflate(self):

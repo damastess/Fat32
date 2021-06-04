@@ -34,6 +34,8 @@ if __name__ == '__main__':
     last_part_start = 0
     main_partition = mbr_data.partitions[0]
     for id, partition in enumerate(mbr_data.partitions):
+        print("Partition id: " + str(id))
+        print(partition)
         if partition.lba_start != 0:
             if START_SECTOR < partition.lba_start:
                 main_partition = mbr_data.partitions[id]
@@ -64,10 +66,8 @@ if __name__ == '__main__':
         print('Error, couldn\'t find cluster for picked sector')
     else:
         start_cluster_of_searching_file = fat_proxy.get_first_cluster(searching_cluster)
-
         for file in files._files_list:
-            if not file.long_filename and  \
-               file.start_file_in_cluster == start_cluster_of_searching_file:
-                print('==================')
+            if not file.long_filename and file.file_first_cluster_nr == start_cluster_of_searching_file:
+                print('=====================Found file:')
                 print(file)
                 break

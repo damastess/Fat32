@@ -1,8 +1,5 @@
 # TODO: remove when not needed anymore
 # %%
-%load_ext autoreload
-%autoreload 2
-
 # %%
 from kaitai_generated.vfat import Vfat
 from kaitai_generated.mbr_partition_table import MbrPartitionTable

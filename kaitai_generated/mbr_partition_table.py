@@ -51,6 +51,16 @@ class MbrPartitionTable(KaitaiStruct):
             self.lba_start = self._io.read_u4le()
             self.num_sectors = self._io.read_u4le()
 
+        def __str__(self):
+            return (f'====Partition table info:\n'
+                    f'Status: {self.status}\n'
+                    f'CHS (Head): {self.chs_start.head}\n'
+                    f'CHS (Sector): {self.chs_start.b2}\n'
+                    f'CHS (Cylinder): {self.chs_start.b3}\n'
+                    f'Partition type: {self.partition_type}\n'
+                    f'LBA start: {self.lba_start}\n'
+                    f'Sectors number: {self.num_sectors}\n')
+
     class Chs(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
