@@ -26,6 +26,9 @@ class MbrPartitionTable(KaitaiStruct):
         self._root = _root if _root else self
         self._read()
 
+    def getIO(self):
+        return self._io
+
     def _read(self):
         self.bootstrap_code = self._io.read_bytes(446)
         self.partitions = [None] * (4)

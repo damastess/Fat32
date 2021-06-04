@@ -248,6 +248,9 @@ class Filesystem:
                     if curr_cluster == -1:
                         break
 
+    def getFilesList(self):
+        return self._files_list
+
 
 class FATProxy:
     def __init__(self, fat_list):
